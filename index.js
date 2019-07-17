@@ -1,18 +1,19 @@
 /* eslint-env node */
-'use strict';
+"use strict";
 
-const fs = require('fs');
-const path = require('path');
-const express = require('express');
-const http = require('http');
-const critical = require('critical');
-const chromeLauncher = require('chrome-launcher');
-const chromeInterface = require('chrome-remote-interface');
-const stringUtil = require('ember-cli-string-utils');
+const fs = require("fs");
+const path = require("path");
+const express = require("express");
+const http = require("http");
+const critical = require("critical");
+const chromeLauncher = require("chrome-launcher");
+const chromeInterface = require("chrome-remote-interface");
+const stringUtil = require("ember-cli-string-utils");
+const chrome = require("chrome-aws-lambda");
 
 const DEFAULT_OPTIONS = {
-  visitPath: '/app-shell',
-  outputFile: 'index.html',
+  visitPath: "/app-shell",
+  outputFile: "index.html",
   enabled: true,
   chromeFlags: []
 };
@@ -21,54 +22,67 @@ const DEFAULT_CRITICAL_OPTIONS = {
   minify: true
 };
 
-const PLACEHOLDER = '<!-- EMBER_APP_SHELL_PLACEHOLDER -->';
+const PLACEHOLDER = "<!-- EMBER_APP_SHELL_PLACEHOLDER -->";
 
-const SERVER_PORT = process.env.APP_SHELL_EXPRESS_PORT || '4321';
+const SERVER_PORT = process.env.APP_SHELL_EXPRESS_PORT || "4321";
 
 module.exports = {
-  name: 'ember-app-shell',
+  name: "ember-app-shell",
 
   included(app) {
     this._super.included && this._super.included.apply(this, arguments);
     this.app = app;
     this.app.options = this.app.options || {};
-    this.app.options['ember-app-shell'] = Object.assign({}, DEFAULT_OPTIONS, this.app.options['ember-app-shell']);
+    this.app.options["ember-app-shell"] = Object.assign(
+      {},
+      DEFAULT_OPTIONS,
+      this.app.options["ember-app-shell"]
+    );
     if (process.env.APP_SHELL_DISABLED) {
-      this.app.options['ember-app-shell'].enabled = false;
+      this.app.options["ember-app-shell"].enabled = false;
     }
   },
 
   postBuild({ directory }) {
-    if (!this.app.options['ember-app-shell'].enabled || this.app.env === 'test') {
+    if (
+      !this.app.options["ember-app-shell"].enabled ||
+      this.app.env === "test"
+    ) {
       return;
     }
 
-    let { outputFile, visitPath } = this.app.options['ember-app-shell'];
+    let { outputFile, visitPath } = this.app.options["ember-app-shell"];
 
-    return this._launchAppServer(directory)
-      .then((server) => {
-        return this._launchChrome().then(({ client, chrome }) => {
-          const { Page, Runtime } = client;
+    return this._launchAppServer(directory).then(server => {
+      return this._launchChrome().then(({ client, chrome }) => {
+        const { Page, Runtime } = client;
 
-          const kill = () => {
-            server.close();
-            client.close();
-            return chrome.kill();
-          }
+        const kill = () => {
+          server.close();
+          client.close();
+          return chrome.kill();
+        };
 
-          const url = path.join(`http://localhost:${SERVER_PORT}`, visitPath);
+        const url = path.join(`http://localhost:${SERVER_PORT}`, visitPath);
 
-          const navigate = Page.enable()
-            .then(() => Page.addScriptToEvaluateOnNewDocument({source: `
+        const navigate = Page.enable()
+          .then(() =>
+            Page.addScriptToEvaluateOnNewDocument({
+              source: `
               window.addEventListener('application', ({ detail: Application }) => {
                 Application.autoboot = false;
               });
-            `}))
-            .then(() => Page.navigate({ url }))
-            .then(() => Page.loadEventFired());
+            `
+            })
+          )
+          .then(() => Page.navigate({ url }))
+          .then(() => Page.loadEventFired());
 
-          return navigate
-            .then(() => Runtime.evaluate({ awaitPromise: true, expression: `
+        return navigate
+          .then(() =>
+            Runtime.evaluate({
+              awaitPromise: true,
+              expression: `
               // Wrap inside a native promise since appGlobal.visit returns
               // RSVP.Promise which doesn't play well with awaitPromise.
               new Promise((resolve, reject) => {
@@ -105,27 +119,42 @@ module.exports = {
                   });
                 }
               });
-            `}))
-            .then((html) => {
-              let indexHTML = fs.readFileSync(path.join(directory, 'index.html')).toString();
-              let appShellHTML = indexHTML.replace(PLACEHOLDER, html.result.value.toString());
-              let criticalOptions = Object.assign(DEFAULT_CRITICAL_OPTIONS, {
+            `
+            })
+          )
+          .then(html => {
+            let indexHTML = fs
+              .readFileSync(path.join(directory, "index.html"))
+              .toString();
+            let appShellHTML = indexHTML.replace(
+              PLACEHOLDER,
+              html.result.value.toString()
+            );
+            let criticalOptions = Object.assign(
+              DEFAULT_CRITICAL_OPTIONS,
+              {
                 inline: true,
                 base: directory,
                 folder: directory,
                 html: appShellHTML,
                 dest: outputFile
-              }, this.app.options['ember-app-shell'].criticalCSSOptions);
-              return critical.generate(criticalOptions);
-            })
-            .catch((error) => console.log(error))
-            .then(kill, kill);
-        });
+              },
+              this.app.options["ember-app-shell"].criticalCSSOptions
+            );
+            return critical.generate(criticalOptions);
+          })
+          .catch(error => console.log(error))
+          .then(kill, kill);
       });
+    });
   },
 
   contentFor(type) {
-    if (type === "body-footer" && this.app.env !== "test" && this.app.options["ember-app-shell"].enabled) {
+    if (
+      type === "body-footer" &&
+      this.app.env !== "test" &&
+      this.app.options["ember-app-shell"].enabled
+    ) {
       return PLACEHOLDER;
     }
   },
@@ -135,8 +164,8 @@ module.exports = {
       let app = express();
       let server = http.createServer(app);
       app.use(express.static(directory));
-      app.get('*', function (req, res) {
-        res.sendFile('/index.html', { root: directory });
+      app.get("*", function(req, res) {
+        res.sendFile("/index.html", { root: directory });
       });
 
       server.listen(SERVER_PORT, () => {
@@ -147,24 +176,29 @@ module.exports = {
 
   _launchChrome() {
     let chromeFlags = [
-      '--disable-gpu',
-      '--headless',
-      ...this.app.options['ember-app-shell'].chromeFlags
+      "--disable-gpu",
+      "--headless",
+      ...this.app.options["ember-app-shell"].chromeFlags
     ];
 
-    return chromeLauncher.launch({ chromeFlags }).then(chrome => {
-      return chromeInterface({ port: chrome.port }).then((client) => {
-        return { client, chrome };
+    return chromeLauncher
+      .launch({ chromeFlags, chromePath: chrome.executablePath })
+      .then(chrome => {
+        return chromeInterface({ port: chrome.port }).then(client => {
+          return { client, chrome };
+        });
       });
-    });
   },
 
   _appGlobal() {
-    let config = require(path.join(this.app.project.root, 'config/environment'))(this.app.env);
+    let config = require(path.join(
+      this.app.project.root,
+      "config/environment"
+    ))(this.app.env);
 
     var value = config.exportApplicationGlobal;
 
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       return value;
     } else {
       return stringUtil.classify(config.modulePrefix);

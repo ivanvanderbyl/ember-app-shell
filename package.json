@@ -9,6 +9,7 @@
   "author": "",
   "repository": "https://github.com/DockYard/ember-app-shell",
   "dependencies": {
+    "chrome-aws-lambda": "^1.18.1",
     "chrome-launcher": "^0.8.0",
     "chrome-remote-interface": "^0.25.0",
     "critical": "^1.0.0",

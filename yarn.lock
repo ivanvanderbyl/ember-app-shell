@@ -1588,6 +1588,11 @@ chownr@^1.1.1:
   resolved "https://registry.yarnpkg.com/chownr/-/chownr-1.1.2.tgz#a18f1e0b269c8a6a5d3c86eb298beb14c3dd7bf6"
   integrity sha512-GkfeAQh+QNy3wquu9oIZr6SS5x7wGdSgNQvD10X3r+AZr1Oys22HW8kAmDMvNg2+Dm0TeGaEuO8gFwdBXxwO8A==
 
+chrome-aws-lambda@^1.18.1:
+  version "1.18.1"
+  resolved "https://registry.yarnpkg.com/chrome-aws-lambda/-/chrome-aws-lambda-1.18.1.tgz#c622fe37b2ffe0cf77e50fdacd47361ddd8a2d18"
+  integrity sha512-bq17kJcklPE35qq954bOlHg8RcZvDnfRIjGNerkRXLL0FEqMXqIKYW6SY9/05cUZoYyv0BwQ3JkwtQEjawYWDg==
+
 chrome-launcher@^0.8.0:
   version "0.8.1"
   resolved "https://registry.yarnpkg.com/chrome-launcher/-/chrome-launcher-0.8.1.tgz#e275b738376d294b3228dc32caf3ed7ee0405e57"
